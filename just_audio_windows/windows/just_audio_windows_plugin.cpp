@@ -1,3 +1,5 @@
+#pragma comment(lib, "windowsapp")
+
 #include "include/just_audio_windows/just_audio_windows_plugin.h"
 
 // This must be included before many other Windows headers.
@@ -42,7 +44,8 @@ class JustAudioWindowsPlugin : public flutter::Plugin {
   // Called when a method is called on this plugin's channel from Dart.
   void HandleMethodCall(
       const flutter::MethodCall<flutter::EncodableValue> &method_call,
-      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result,
+      flutter::BinaryMessenger* messenger);
 };
 
 // static
@@ -56,8 +59,8 @@ void JustAudioWindowsPlugin::RegisterWithRegistrar(
   auto plugin = std::make_unique<JustAudioWindowsPlugin>();
 
   channel->SetMethodCallHandler(
-      [plugin_pointer = plugin.get()](const auto &call, auto result) {
-        plugin_pointer->HandleMethodCall(call, std::move(result));
+      [plugin_pointer = plugin.get(), messenger_pointer = registrar->messenger()](const auto &call, auto result) {
+        plugin_pointer->HandleMethodCall(call, std::move(result), messenger_pointer);
       });
 
   registrar->AddPlugin(std::move(plugin));
@@ -69,7 +72,8 @@ JustAudioWindowsPlugin::~JustAudioWindowsPlugin() {}
 
 void JustAudioWindowsPlugin::HandleMethodCall(
     const flutter::MethodCall<flutter::EncodableValue> &method_call,
-    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result,
+    flutter::BinaryMessenger* messenger) {
   const auto* args =std::get_if<flutter::EncodableMap>(method_call.arguments());
   if (args) {
     if (method_call.method_name().compare("init") == 0) {
@@ -77,12 +81,21 @@ void JustAudioWindowsPlugin::HandleMethodCall(
       if (!id) {
         return result->Error("id_error", "id argument missing");
       }
-      // AudioPlayer player { *id };
-      // players.insert(std::pair<std::string, AudioPlayer>(*id, player));
+      AudioPlayer player { *id, messenger };
+      players.insert(std::pair<std::string, AudioPlayer>(*id, player));
       result->Success();
     } else if (method_call.method_name().compare("disposePlayer") == 0) {
+      const auto* id = std::get_if<std::string>(ValueOrNull(*args, "id"));
+      if (!id) {
+        return result->Error("id_error", "id argument missing");
+      }
+      auto player = players.find(*id);
+      if (player != players.end()) {
+        players.erase(player);
+      }
       result->Success();
     } else if (method_call.method_name().compare("disposeAllPlayers") == 0) {
+      players.clear();
       result->Success();
     } else {
       result->NotImplemented();
