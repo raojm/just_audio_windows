@@ -3,8 +3,7 @@
 // This must be included before many other Windows headers.
 #include <windows.h>
 
-// For getPlatformVersion; remove unless needed for your plugin implementation.
-#include <VersionHelpers.h>
+#include "player.hpp"
 
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
@@ -14,7 +13,22 @@
 #include <memory>
 #include <sstream>
 
+using flutter::EncodableMap;
+using flutter::EncodableValue;
+
+// Looks for |key| in |map|, returning the associated value if it is present, or
+// a nullptr if not.
+const EncodableValue* ValueOrNull(const EncodableMap& map, const char* key) {
+  auto it = map.find(EncodableValue(key));
+  if (it == map.end()) {
+    return nullptr;
+  }
+  return &(it->second);
+}
+
 namespace {
+
+static std::unordered_map<std::string, AudioPlayer> players;
 
 class JustAudioWindowsPlugin : public flutter::Plugin {
  public:
@@ -56,17 +70,23 @@ JustAudioWindowsPlugin::~JustAudioWindowsPlugin() {}
 void JustAudioWindowsPlugin::HandleMethodCall(
     const flutter::MethodCall<flutter::EncodableValue> &method_call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-  if (method_call.method_name().compare("getPlatformVersion") == 0) {
-    std::ostringstream version_stream;
-    version_stream << "Windows ";
-    if (IsWindows10OrGreater()) {
-      version_stream << "10+";
-    } else if (IsWindows8OrGreater()) {
-      version_stream << "8";
-    } else if (IsWindows7OrGreater()) {
-      version_stream << "7";
+  const auto* args =std::get_if<flutter::EncodableMap>(method_call.arguments());
+  if (args) {
+    if (method_call.method_name().compare("init") == 0) {
+      const auto* id = std::get_if<std::string>(ValueOrNull(*args, "id"));
+      if (!id) {
+        return result->Error("id_error", "id argument missing");
+      }
+      // AudioPlayer player { *id };
+      // players.insert(std::pair<std::string, AudioPlayer>(*id, player));
+      result->Success();
+    } else if (method_call.method_name().compare("disposePlayer") == 0) {
+      result->Success();
+    } else if (method_call.method_name().compare("disposeAllPlayers") == 0) {
+      result->Success();
+    } else {
+      result->NotImplemented();
     }
-    result->Success(flutter::EncodableValue(version_stream.str()));
   } else {
     result->NotImplemented();
   }
