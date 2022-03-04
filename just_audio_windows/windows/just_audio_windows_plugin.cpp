@@ -18,31 +18,6 @@
 using flutter::EncodableMap;
 using flutter::EncodableValue;
 
-// Looks for |key| in |map|, returning the associated value if it is present, or
-// a nullptr if not.
-//
-// The variant types are mapped with Dart types in following ways:
-// std::monostate       -> null
-// bool                 -> bool
-// int32_t              -> int
-// int64_t              -> int
-// double               -> double
-// std::string          -> String
-// std::vector<uint8_t> -> Uint8List
-// std::vector<int32_t> -> Int32List
-// std::vector<int64_t> -> Int64List
-// std::vector<float>   -> Float32List
-// std::vector<double>  -> Float64List
-// EncodableList        -> List
-// EncodableMap         -> Map
-const EncodableValue* ValueOrNull(const EncodableMap& map, const char* key) {
-  auto it = map.find(EncodableValue(key));
-  if (it == map.end()) {
-    return nullptr;
-  }
-  return &(it->second);
-}
-
 namespace {
 
 static std::unordered_map<std::string, AudioPlayer> players;
@@ -68,7 +43,7 @@ void JustAudioWindowsPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows *registrar) {
   auto channel =
       std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-          registrar->messenger(), "just_audio_windows",
+          registrar->messenger(), "com.ryanheise.just_audio.methods",
           &flutter::StandardMethodCodec::GetInstance());
 
   auto plugin = std::make_unique<JustAudioWindowsPlugin>();
@@ -111,7 +86,7 @@ void JustAudioWindowsPlugin::HandleMethodCall(
       result->Success();
     } else if (method_call.method_name().compare("disposeAllPlayers") == 0) {
       players.clear();
-      result->Success();
+      result->Success(flutter::EncodableMap());
     } else {
       result->NotImplemented();
     }
