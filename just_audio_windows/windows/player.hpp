@@ -3,8 +3,9 @@
 // This must be included before many other Windows headers.
 #include <windows.h>
 
+#include <flutter/event_channel.h>
+#include <flutter/event_stream_handler_functions.h>
 #include <flutter/method_channel.h>
-#include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
 
 #include <winrt/Windows.Foundation.Collections.h>
@@ -74,117 +75,158 @@ private:
     /* data */
 public:
     std::string id;
-    Playback::MediaPlayer mediaPlayer;
+    Playback::MediaPlayer mediaPlayer {};
+
+    std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> player_channel_;
+
     AudioPlayer::AudioPlayer(std::string idx, flutter::BinaryMessenger* messenger) {
         id = idx;
-        mediaPlayer = Playback::MediaPlayer();
 
         std::cout << "com.ryanheise.just_audio.methods." + idx << std::endl;
 
-        auto channel =
+        player_channel_ =
           std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
             messenger, "com.ryanheise.just_audio.methods." + idx,
             &flutter::StandardMethodCodec::GetInstance());
 
-        channel->SetMethodCallHandler(
+        player_channel_->SetMethodCallHandler(
           [player = this](const auto &call, auto result) {
             player->HandleMethodCall(call, std::move(result));
           });
+
+        auto eventsChannel = 
+          std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(
+            messenger, "com.ryanheise.just_audio.events." + idx,
+            &flutter::StandardMethodCodec::GetInstance());
+
+        auto eventsHandler = std::make_unique<flutter::StreamHandlerFunctions<>>(
+          [](const EncodableValue* arguments, std::unique_ptr<flutter::EventSink<>>&& events) -> std::unique_ptr<flutter::StreamHandlerError<>> {
+            return nullptr;
+        },
+        [](const EncodableValue* arguments)-> std::unique_ptr<flutter::StreamHandlerError<>> { return nullptr; });
+
+        eventsChannel->SetStreamHandler(std::move(eventsHandler));
+
+        auto dataChannel = 
+          std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(
+            messenger, "com.ryanheise.just_audio.data." + idx,
+            &flutter::StandardMethodCodec::GetInstance());
+
+        auto dataHandler = std::make_unique<flutter::StreamHandlerFunctions<>>(
+          [](const EncodableValue* arguments, std::unique_ptr<flutter::EventSink<>>&& events) -> std::unique_ptr<flutter::StreamHandlerError<>> {
+            return nullptr;
+        },
+        [](const EncodableValue* arguments)-> std::unique_ptr<flutter::StreamHandlerError<>> { return nullptr; });
+
+        dataChannel->SetStreamHandler(std::move(dataHandler));
     }
     AudioPlayer::~AudioPlayer() {
-        // mediaPlayer.Close();
+        mediaPlayer.Close();
+    }
+
+    bool HasPlayerId(std::string playerId) {
+      return id == playerId;
     }
 
     void AudioPlayer::HandleMethodCall(
         const flutter::MethodCall<flutter::EncodableValue> &method_call,
         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-        const auto* args =std::get_if<flutter::EncodableMap>(method_call.arguments());
-        if (args) {
-            if (method_call.method_name().compare("load") == 0) {
-              // const auto* audioSourceData = std::get_if<flutter::EncodableMap>(ValueOrNull(*args, "audioSource"));
-              // const auto* initialPosition = std::get_if<int32_t>(ValueOrNull(*args, "initialPosition"));
-              // const auto* initialIndex = std::get_if<int32_t>(ValueOrNull(*args, "initialIndex"));
+        const auto* args = std::get_if<flutter::EncodableMap>(method_call.arguments());
+        std::cout << method_call.method_name();
+        if (method_call.method_name().compare("load") == 0) {
+          const auto* audioSourceData = std::get_if<flutter::EncodableMap>(ValueOrNull(*args, "audioSource"));
+          // const auto* initialPosition = std::get_if<int32_t>(ValueOrNull(*args, "initialPosition"));
+          // const auto* initialIndex = std::get_if<int32_t>(ValueOrNull(*args, "initialIndex"));
 
-              // const auto mediaSource = getMediaSource(*audioSourceData);
+          // const auto mediaSource = 
+          try {
+            getMediaSource(*audioSourceData);
+          } catch (...) {
+            result->Error("source_error");
+            return;
+          }
+          // std::wcout << mediaSource.Uri().ToString() << std::endl;
 
-              // mediaPlayer.SetUriSource(mediaSource.Uri());
+          // mediaPlayer.SetUriSource(mediaSource.Uri());
 
-              result->Success(flutter::EncodableMap());
-            } else if (method_call.method_name().compare("play") == 0) {
-              mediaPlayer.Play();
-              result->Success();
-            } else if (method_call.method_name().compare("pause") == 0) {
-              mediaPlayer.Pause();
-              result->Success();
-            } else if (method_call.method_name().compare("setVolume") == 0) {
-              const auto* volume = std::get_if<double>(ValueOrNull(*args, "volume"));
-              if (!volume) {
-                return result->Error("volume_error", "volume argument missing");
-              }
-              float volumeFloat = (float) *volume;
-              mediaPlayer.Volume(volumeFloat);
-              result->Success();
-            } else if (method_call.method_name().compare("setSpeed") == 0) {
-              const auto* speed = std::get_if<double>(ValueOrNull(*args, "speed"));
-              if (!speed) {
-                return result->Error("speed_error", "speed argument missing");
-              }
-              float speedFloat = (float) *speed;
-              mediaPlayer.PlaybackRate(speedFloat);
-              result->Success();
-            } else if (method_call.method_name().compare("setPitch") == 0) {
-              const auto* pitch = std::get_if<double>(ValueOrNull(*args, "pitch"));
-              if (!pitch) {
-                return result->Error("pitch_error", "pitch argument missing");
-              }
-              float pitchFloat = (float) *pitch;
-              mediaPlayer.AudioBalance(pitchFloat);
-              result->Success();
-            } else if (method_call.method_name().compare("setSkipSilence") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("setLoopMode") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("setShuffleMode") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("setShuffleOrder") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("setAutomaticallyWaitsToMinimizeStalling") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("setCanUseNetworkResourcesForLiveStreamingWhilePaused") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("setPreferredPeakBitRate") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("seek") == 0) {
-              const auto* position = std::get_if<int32_t>(ValueOrNull(*args, "position"));
-              if (position) {
-                mediaPlayer.Position(TimeSpan(std::chrono::milliseconds(*position)));
-              }
-              result->Success();
-            } else if (method_call.method_name().compare("concatenatingInsertAll") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("concatenatingRemoveRange") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("concatenatingMove") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("setAndroidAudioAttributes") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("audioEffectSetEnabled") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("androidLoudnessEnhancerSetTargetGain") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("androidEqualizerGetParameters") == 0) {
-              result->Success();
-            } else if (method_call.method_name().compare("androidEqualizerBandSetGain") == 0) {
-              result->Success();
-            } else {
-              result->NotImplemented();
-            }
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("play") == 0) {
+          mediaPlayer.Play();
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("pause") == 0) {
+          mediaPlayer.Pause();
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setVolume") == 0) {
+          const auto* volume = std::get_if<double>(ValueOrNull(*args, "volume"));
+          if (!volume) {
+            return result->Error("volume_error", "volume argument missing");
+          }
+          float volumeFloat = (float) *volume;
+          mediaPlayer.Volume(volumeFloat);
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setSpeed") == 0) {
+          const auto* speed = std::get_if<double>(ValueOrNull(*args, "speed"));
+          if (!speed) {
+            return result->Error("speed_error", "speed argument missing");
+          }
+          float speedFloat = (float) *speed;
+          mediaPlayer.PlaybackRate(speedFloat);
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setPitch") == 0) {
+          const auto* pitch = std::get_if<double>(ValueOrNull(*args, "pitch"));
+          if (!pitch) {
+            return result->Error("pitch_error", "pitch argument missing");
+          }
+          float pitchFloat = (float) *pitch;
+          mediaPlayer.AudioBalance(pitchFloat);
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setSkipSilence") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setLoopMode") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setShuffleMode") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setShuffleOrder") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setAutomaticallyWaitsToMinimizeStalling") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setCanUseNetworkResourcesForLiveStreamingWhilePaused") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setPreferredPeakBitRate") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("seek") == 0) {
+          const auto* position = std::get_if<int32_t>(ValueOrNull(*args, "position"));
+          if (position) {
+            mediaPlayer.Position(TimeSpan(std::chrono::milliseconds(*position)));
+          }
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("concatenatingInsertAll") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("concatenatingRemoveRange") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("concatenatingMove") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("setAndroidAudioAttributes") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("audioEffectSetEnabled") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("androidLoudnessEnhancerSetTargetGain") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("androidEqualizerGetParameters") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("androidEqualizerBandSetGain") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else if (method_call.method_name().compare("dispose") == 0) {
+          result->Success(flutter::EncodableMap());
+        } else {
+          result->NotImplemented();
         }
     }
 
     Core::MediaSource AudioPlayer::getMediaSource(const flutter::EncodableMap &source) const& {
       // const std::string* id = std::get_if<std::string>(ValueOrNull(*source, "id"));
       const std::string* type = std::get_if<std::string>(ValueOrNull(source, "type"));
+      std::cout << type << std::endl;
       if (type->compare("progressive") == 0) {
         const std::string* uri = std::get_if<std::string>(ValueOrNull(source, "type"));
         return Core::MediaSource::CreateFromUri(Uri(TO_WIDESTRING(*uri)));
@@ -206,4 +248,3 @@ public:
     }
 
 }; 
-

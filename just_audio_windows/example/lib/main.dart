@@ -14,12 +14,15 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final AudioPlayer player = AudioPlayer();
-
   @override
   void initState() {
     super.initState();
-    player.setUrl(
+    load();
+  }
+
+  void load() async {
+    final player = AudioPlayer();
+    await player.setUrl(
       'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3',
     );
   }

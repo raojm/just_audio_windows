@@ -20,7 +20,8 @@ using flutter::EncodableValue;
 
 namespace {
 
-static std::unordered_map<std::string, AudioPlayer> players;
+// static std::unordered_map<std::string, AudioPlayer> players;
+std::vector<std::unique_ptr<AudioPlayer>> players_;
 
 class JustAudioWindowsPlugin : public flutter::Plugin {
  public:
@@ -36,6 +37,12 @@ class JustAudioWindowsPlugin : public flutter::Plugin {
       const flutter::MethodCall<flutter::EncodableValue> &method_call,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result,
       flutter::BinaryMessenger* messenger);
+  // Loops through cameras and returns camera
+  // with matching camera_id or nullptr.
+  AudioPlayer* GetPlayerByPlayerId(std::string id);
+
+  // Disposes camera by camera id.
+  void DisposePlayerByPlayerId(std::string id);
 };
 
 // static
@@ -50,7 +57,7 @@ void JustAudioWindowsPlugin::RegisterWithRegistrar(
 
   channel->SetMethodCallHandler(
       [plugin_pointer = plugin.get(), messenger_pointer = registrar->messenger()](const auto &call, auto result) {
-        plugin_pointer->HandleMethodCall(call, std::move(result), messenger_pointer);
+        plugin_pointer->HandleMethodCall(call, std::move(result), std::move(messenger_pointer));
       });
 
   registrar->AddPlugin(std::move(plugin));
@@ -69,29 +76,44 @@ void JustAudioWindowsPlugin::HandleMethodCall(
     if (method_call.method_name().compare("init") == 0) {
       const auto* id = std::get_if<std::string>(ValueOrNull(*args, "id"));
       if (!id) {
-        return result->Error("id_error", "id argument missing");
+        return result->Error("argument_error", "id argument missing");
       }
-      AudioPlayer player { *id, messenger };
-      players.insert(std::pair<std::string, AudioPlayer>(*id, player));
+      auto player = std::make_unique<AudioPlayer>(*id, messenger);
+      players_.push_back(std::move(player));
       result->Success();
     } else if (method_call.method_name().compare("disposePlayer") == 0) {
       const auto* id = std::get_if<std::string>(ValueOrNull(*args, "id"));
       if (!id) {
-        return result->Error("id_error", "id argument missing");
+        return result->Error("argument_error", "id argument missing");
       }
-      auto player = players.find(*id);
-      if (player != players.end()) {
-        players.erase(player);
-      }
-      result->Success();
+      DisposePlayerByPlayerId(*id);
+      result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("disposeAllPlayers") == 0) {
-      players.clear();
+      players_.clear();
       result->Success(flutter::EncodableMap());
     } else {
       result->NotImplemented();
     }
   } else {
     result->NotImplemented();
+  }
+}
+
+AudioPlayer* JustAudioWindowsPlugin::GetPlayerByPlayerId(std::string id) {
+  for (auto it = begin(players_); it != end(players_); ++it) {
+    if ((*it)->HasPlayerId(id)) {
+      return it->get();
+    }
+  }
+  return nullptr;
+}
+
+void JustAudioWindowsPlugin::DisposePlayerByPlayerId(std::string id) {
+  for (auto it = begin(players_); it != end(players_); ++it) {
+    if ((*it)->HasPlayerId(id)) {
+      players_.erase(it);
+      return;
+    }
   }
 }
 
