@@ -3,7 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  libwinmedia
+  just_audio_windows
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

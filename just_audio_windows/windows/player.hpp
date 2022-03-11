@@ -15,6 +15,9 @@
 #include <winrt/Windows.Media.Playback.h>
 #include <winrt/Windows.System.h>
 
+#define TO_MILLISECONDS(timespan) timespan.count() / 10000
+#define TO_MICROSECONDS(timespan) timespan.count() / 10000
+
 using flutter::EncodableMap;
 using flutter::EncodableValue;
 
@@ -78,6 +81,7 @@ public:
     Playback::MediaPlayer mediaPlayer {};
 
     std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> player_channel_;
+    std::unique_ptr<flutter::EventSink<>> event_sink_;
 
     AudioPlayer::AudioPlayer(std::string idx, flutter::BinaryMessenger* messenger) {
         id = idx;
@@ -94,18 +98,21 @@ public:
             player->HandleMethodCall(call, std::move(result));
           });
 
-        auto eventsChannel = 
+        event_sink_ = nullptr;
+
+        auto events_channel_ = 
           std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(
             messenger, "com.ryanheise.just_audio.events." + idx,
             &flutter::StandardMethodCodec::GetInstance());
 
         auto eventsHandler = std::make_unique<flutter::StreamHandlerFunctions<>>(
-          [](const EncodableValue* arguments, std::unique_ptr<flutter::EventSink<>>&& events) -> std::unique_ptr<flutter::StreamHandlerError<>> {
+          [player = this](const EncodableValue* arguments, std::unique_ptr<flutter::EventSink<>>&& events) -> std::unique_ptr<flutter::StreamHandlerError<>> {
+            player->event_sink_ = std::move(events);
             return nullptr;
         },
         [](const EncodableValue* arguments)-> std::unique_ptr<flutter::StreamHandlerError<>> { return nullptr; });
 
-        eventsChannel->SetStreamHandler(std::move(eventsHandler));
+        events_channel_->SetStreamHandler(std::move(eventsHandler));
 
         auto dataChannel = 
           std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(
@@ -119,6 +126,10 @@ public:
         [](const EncodableValue* arguments)-> std::unique_ptr<flutter::StreamHandlerError<>> { return nullptr; });
 
         dataChannel->SetStreamHandler(std::move(dataHandler));
+
+        mediaPlayer.PlaybackSession().PlaybackStateChanged([=](auto, const auto& args) -> void {
+          broadcastPlaybackEvent();
+        });
     }
     AudioPlayer::~AudioPlayer() {
         mediaPlayer.Close();
@@ -138,16 +149,7 @@ public:
           // const auto* initialPosition = std::get_if<int32_t>(ValueOrNull(*args, "initialPosition"));
           // const auto* initialIndex = std::get_if<int32_t>(ValueOrNull(*args, "initialIndex"));
 
-          // const auto mediaSource = 
-          try {
-            getMediaSource(*audioSourceData);
-          } catch (...) {
-            result->Error("source_error");
-            return;
-          }
-          // std::wcout << mediaSource.Uri().ToString() << std::endl;
-
-          // mediaPlayer.SetUriSource(mediaSource.Uri());
+          getMediaSource(*audioSourceData);
 
           result->Success(flutter::EncodableMap());
         } else if (method_call.method_name().compare("play") == 0) {
@@ -223,17 +225,19 @@ public:
         }
     }
 
-    Core::MediaSource AudioPlayer::getMediaSource(const flutter::EncodableMap &source) const& {
+    void AudioPlayer::getMediaSource(const flutter::EncodableMap &source) const& {
       // const std::string* id = std::get_if<std::string>(ValueOrNull(*source, "id"));
       const std::string* type = std::get_if<std::string>(ValueOrNull(source, "type"));
       std::cout << type << std::endl;
       if (type->compare("progressive") == 0) {
-        const std::string* uri = std::get_if<std::string>(ValueOrNull(source, "type"));
-        return Core::MediaSource::CreateFromUri(Uri(TO_WIDESTRING(*uri)));
+        const std::string* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
+        mediaPlayer.SetUriSource(Uri(TO_WIDESTRING(*uri)));
       } else if (type->compare("dash") == 0) {
-        throw "dash audiosource type is currently not supported";
+        const std::string* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
+        mediaPlayer.SetUriSource(Uri(TO_WIDESTRING(*uri)));
       } else if (type->compare("hsl") == 0) {
-        throw "hsl audiosource type is currently not supported";
+        const std::string* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
+        mediaPlayer.SetUriSource(Uri(TO_WIDESTRING(*uri)));
       } else if (type->compare("silence") == 0) {
         throw "silence audiosource type is currently not supported";
       } else if (type->compare("concatenating") == 0) {
@@ -245,6 +249,32 @@ public:
       } else {
         throw std::invalid_argument( "Unknown AudioSource type: " + *type );
       }
+    }
+
+    void AudioPlayer::broadcastPlaybackEvent() {
+      auto session = mediaPlayer.PlaybackSession();
+      auto eventData = flutter::EncodableMap();
+      eventData[flutter::EncodableValue("processingState")] = flutter::EncodableValue(processingState(session.PlaybackState()));
+      eventData[flutter::EncodableValue("updatePosition")] = flutter::EncodableValue(TO_MICROSECONDS(session.Position())); //int
+      eventData[flutter::EncodableValue("updateTime")] = flutter::EncodableValue(0); //int
+      eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int) session.BufferingProgress()); //int
+      eventData[flutter::EncodableValue("duration")] = flutter::EncodableValue(TO_MICROSECONDS(session.NaturalDuration())); //int
+
+      event_sink_->Success(eventData);
+    }
+
+    int AudioPlayer::processingState(Playback::MediaPlaybackState state) {
+      if (state == Playback::MediaPlaybackState::None) {
+        return 0; //idle
+      } else if (state == Playback::MediaPlaybackState::Opening) {
+        return 1; //loading
+      } else if (state == Playback::MediaPlaybackState::Buffering) {
+        return 2;//buffering
+      } else if (mediaPlayer.PlaybackSession().Position().count() ==
+                mediaPlayer.PlaybackSession().NaturalDuration().count()) {
+        return 4; //completed
+      }
+      return 3; //ready
     }
 
 }; 
