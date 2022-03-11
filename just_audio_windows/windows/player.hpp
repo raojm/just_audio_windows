@@ -1,5 +1,7 @@
 #pragma comment(lib, "windowsapp")
 
+#include <chrono>
+
 // This must be included before many other Windows headers.
 #include <windows.h>
 
@@ -14,9 +16,6 @@
 #include <winrt/Windows.Media.Core.h>
 #include <winrt/Windows.Media.Playback.h>
 #include <winrt/Windows.System.h>
-
-#define TO_MILLISECONDS(timespan) timespan.count() / 10000
-#define TO_MICROSECONDS(timespan) timespan.count() / 10000
 
 using flutter::EncodableMap;
 using flutter::EncodableValue;
@@ -157,6 +156,7 @@ public:
           result->Success(flutter::EncodableMap());
         } else if (method_call.method_name().compare("pause") == 0) {
           mediaPlayer.Pause();
+          mediaPlayer.StepForwardOneFrame();
           result->Success(flutter::EncodableMap());
         } else if (method_call.method_name().compare("setVolume") == 0) {
           const auto* volume = std::get_if<double>(ValueOrNull(*args, "volume"));
@@ -254,11 +254,18 @@ public:
     void AudioPlayer::broadcastPlaybackEvent() {
       auto session = mediaPlayer.PlaybackSession();
       auto eventData = flutter::EncodableMap();
+
+      auto duration = std::chrono::duration_cast<std::chrono::microseconds>(session.NaturalDuration()).count();
+      auto position = std::chrono::duration_cast<std::chrono::microseconds>(session.Position()).count();
+
+      auto now = std::chrono::system_clock::now();
+      auto updateTime = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+
       eventData[flutter::EncodableValue("processingState")] = flutter::EncodableValue(processingState(session.PlaybackState()));
-      eventData[flutter::EncodableValue("updatePosition")] = flutter::EncodableValue(TO_MICROSECONDS(session.Position())); //int
-      eventData[flutter::EncodableValue("updateTime")] = flutter::EncodableValue(0); //int
-      eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int) session.BufferingProgress()); //int
-      eventData[flutter::EncodableValue("duration")] = flutter::EncodableValue(TO_MICROSECONDS(session.NaturalDuration())); //int
+      eventData[flutter::EncodableValue("updatePosition")] = flutter::EncodableValue((int) position); //int
+      eventData[flutter::EncodableValue("updateTime")] = flutter::EncodableValue((int) updateTime); //int
+      eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int)  ((int) (duration) * session.BufferingProgress())); //int
+      eventData[flutter::EncodableValue("duration")] = flutter::EncodableValue((int) duration); //int
 
       event_sink_->Success(eventData);
     }

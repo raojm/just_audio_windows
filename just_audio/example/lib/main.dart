@@ -95,6 +95,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 stream: _positionDataStream,
                 builder: (context, snapshot) {
                   final positionData = snapshot.data;
+                  print('${positionData?.duration} ${positionData?.position}');
                   return SeekBar(
                     duration: positionData?.duration ?? Duration.zero,
                     position: positionData?.position ?? Duration.zero,
