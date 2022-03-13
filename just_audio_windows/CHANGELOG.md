@@ -1,3 +1,5 @@
 ## 0.0.1
 
-* TODO: Describe initial release.
+* Initial Base Implementation
+  * `init`, `disposePlayer`, `disposeAllPlayers`
+  * `load`, `play`, `pause`, `setVolume`, `setSpeed`, `setPitch`, `seek`

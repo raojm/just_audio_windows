@@ -1,15 +1,31 @@
 # just_audio_windows
 
-A new flutter plugin project.
+The windows implementation of [`just_audio`](https://pub.dev/packages/just_audio)
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/developing-packages/),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
+| Feature                        |   Windows    |
+| ------------------------------ | :----------: |
+| read from URL                  |      ✅      |
+| read from file                 | (not tested) |
+| read from asset                | (not tested) |
+| read from byte stream          | (not tested) |
+| request headers                |              |
+| DASH                           |      ✅      |
+| HLS                            |      ✅      |
+| ICY metadata                   |              |
+| buffer status/position         |      ✅      |
+| play/pause/seek                |      ✅      |
+| set volume/speed               |      ✅      |
+| clip audio                     |              |
+| playlists                      |              |
+| looping/shuffling              |              |
+| compose audio                  |              |
+| gapless playback               |      ✅      |
+| report player errors           |              |
+| handle phonecall interruptions |              |
+| buffering/loading options      |              |
+| set pitch                      |      ✅      |
+| skip silence                   |              |
+| equalizer                      |              |
+| volume boost                   |              |
