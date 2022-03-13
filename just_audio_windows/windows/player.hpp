@@ -85,8 +85,7 @@ public:
     AudioPlayer::AudioPlayer(std::string idx, flutter::BinaryMessenger* messenger) {
         id = idx;
 
-        std::cout << "com.ryanheise.just_audio.methods." + idx << std::endl;
-
+        // Set up channels
         player_channel_ =
           std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
             messenger, "com.ryanheise.just_audio.methods." + idx,
@@ -126,8 +125,26 @@ public:
 
         dataChannel->SetStreamHandler(std::move(dataHandler));
 
+        /// Set up event callbacks
+        // Playback event
         mediaPlayer.PlaybackSession().PlaybackStateChanged([=](auto, const auto& args) -> void {
           broadcastPlaybackEvent();
+        });
+
+        // Player error event
+        mediaPlayer.MediaFailed([=](auto, const Playback::MediaPlayerFailedEventArgs& args) -> void {
+          // event_sink_->Error(args.Error().ToString(), args.ErrorMessage());
+          if (args.Error() == Playback::MediaPlayerError::Unknown) {
+            event_sink_->Error("unknown", args.ErrorMessage());
+          } else if (args.Error() == Playback::MediaPlayerError::Aborted) {
+            event_sink_->Error("abort", args.ErrorMessage());
+          } else if (args.Error() == Playback::MediaPlayerError::NetworkError) {
+            event_sink_->Error("networkError", args.ErrorMessage());
+          } else if (args.Error() == Playback::MediaPlayerError::DecodingError) {
+            event_sink_->Error("decodingError", args.ErrorMessage());
+          } else if (args.Error() == Playback::MediaPlayerError::SourceNotSupported) {
+            event_sink_->Error("sourceNotSupported", args.ErrorMessage());
+          }
         });
     }
     AudioPlayer::~AudioPlayer() {
@@ -219,6 +236,7 @@ public:
         } else if (method_call.method_name().compare("androidEqualizerBandSetGain") == 0) {
           result->Success(flutter::EncodableMap());
         } else if (method_call.method_name().compare("dispose") == 0) {
+          mediaPlayer.Close();
           result->Success(flutter::EncodableMap());
         } else {
           result->NotImplemented();
@@ -230,13 +248,16 @@ public:
       const std::string* type = std::get_if<std::string>(ValueOrNull(source, "type"));
       std::cout << type << std::endl;
       if (type->compare("progressive") == 0) {
-        const std::string* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
+        const auto* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
+        // const auto* headers = std::get_if<flutter::EncodableMap>(ValueOrNull(source, "headers"));
         mediaPlayer.SetUriSource(Uri(TO_WIDESTRING(*uri)));
       } else if (type->compare("dash") == 0) {
-        const std::string* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
+        const auto* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
+        // const auto* headers = std::get_if<flutter::EncodableMap>(ValueOrNull(source, "headers"));
         mediaPlayer.SetUriSource(Uri(TO_WIDESTRING(*uri)));
       } else if (type->compare("hsl") == 0) {
-        const std::string* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
+        const auto* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
+        // const auto* headers = std::get_if<flutter::EncodableMap>(ValueOrNull(source, "headers"));
         mediaPlayer.SetUriSource(Uri(TO_WIDESTRING(*uri)));
       } else if (type->compare("silence") == 0) {
         throw "silence audiosource type is currently not supported";
@@ -282,6 +303,15 @@ public:
         return 4; //completed
       }
       return 3; //ready
+    }
+
+    flutter::EncodableMap AudioPlayer::collectIcyMetadata() {
+      auto icyData = flutter::EncodableMap();
+
+      // TODO: Icy Metadata
+      // mediaPlayer.PlaybackMediaMarkers();
+
+      return icyData;
     }
 
 }; 

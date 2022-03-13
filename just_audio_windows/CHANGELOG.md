@@ -3,3 +3,5 @@
 * Initial Base Implementation
   * `init`, `disposePlayer`, `disposeAllPlayers`
   * `load`, `play`, `pause`, `setVolume`, `setSpeed`, `setPitch`, `seek`
+  * `dispose`
+  * Error reporting
