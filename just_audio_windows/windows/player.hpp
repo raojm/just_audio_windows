@@ -134,16 +134,17 @@ public:
         // Player error event
         mediaPlayer.MediaFailed([=](auto, const Playback::MediaPlayerFailedEventArgs& args) -> void {
           // event_sink_->Error(args.Error().ToString(), args.ErrorMessage());
+          std::string errorMessage = winrt::to_string(args.ErrorMessage());
           if (args.Error() == Playback::MediaPlayerError::Unknown) {
-            event_sink_->Error("unknown", args.ErrorMessage());
+            event_sink_->Error("unknown", errorMessage);
           } else if (args.Error() == Playback::MediaPlayerError::Aborted) {
-            event_sink_->Error("abort", args.ErrorMessage());
+            event_sink_->Error("abort", errorMessage);
           } else if (args.Error() == Playback::MediaPlayerError::NetworkError) {
-            event_sink_->Error("networkError", args.ErrorMessage());
+            event_sink_->Error("networkError", errorMessage);
           } else if (args.Error() == Playback::MediaPlayerError::DecodingError) {
-            event_sink_->Error("decodingError", args.ErrorMessage());
+            event_sink_->Error("decodingError", errorMessage);
           } else if (args.Error() == Playback::MediaPlayerError::SourceNotSupported) {
-            event_sink_->Error("sourceNotSupported", args.ErrorMessage());
+            event_sink_->Error("sourceNotSupported", errorMessage);
           }
         });
     }
@@ -250,6 +251,7 @@ public:
       if (type->compare("progressive") == 0) {
         const auto* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
         // const auto* headers = std::get_if<flutter::EncodableMap>(ValueOrNull(source, "headers"));
+
         mediaPlayer.SetUriSource(Uri(TO_WIDESTRING(*uri)));
       } else if (type->compare("dash") == 0) {
         const auto* uri = std::get_if<std::string>(ValueOrNull(source, "uri"));
@@ -279,13 +281,15 @@ public:
       auto duration = std::chrono::duration_cast<std::chrono::microseconds>(session.NaturalDuration()).count();
       auto position = std::chrono::duration_cast<std::chrono::microseconds>(session.Position()).count();
 
+      std::cout << std::to_string(duration * session.BufferingProgress());
+
       auto now = std::chrono::system_clock::now();
       auto updateTime = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
       eventData[flutter::EncodableValue("processingState")] = flutter::EncodableValue(processingState(session.PlaybackState()));
       eventData[flutter::EncodableValue("updatePosition")] = flutter::EncodableValue((int) position); //int
       eventData[flutter::EncodableValue("updateTime")] = flutter::EncodableValue((int) updateTime); //int
-      eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int)  ((int) (duration) * session.BufferingProgress())); //int
+      eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int) (duration * session.BufferingProgress())); //int
       eventData[flutter::EncodableValue("duration")] = flutter::EncodableValue((int) duration); //int
 
       event_sink_->Success(eventData);
