@@ -174,7 +174,7 @@ public:
           result->Success(flutter::EncodableMap());
         } else if (method_call.method_name().compare("pause") == 0) {
           mediaPlayer.Pause();
-          mediaPlayer.StepForwardOneFrame();
+          // mediaPlayer.StepForwardOneFrame();
           result->Success(flutter::EncodableMap());
         } else if (method_call.method_name().compare("setVolume") == 0) {
           const auto* volume = std::get_if<double>(ValueOrNull(*args, "volume"));
@@ -281,15 +281,14 @@ public:
       auto duration = std::chrono::duration_cast<std::chrono::microseconds>(session.NaturalDuration()).count();
       auto position = std::chrono::duration_cast<std::chrono::microseconds>(session.Position()).count();
 
-      std::cout << std::to_string(duration * session.BufferingProgress());
-
       auto now = std::chrono::system_clock::now();
       auto updateTime = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
       eventData[flutter::EncodableValue("processingState")] = flutter::EncodableValue(processingState(session.PlaybackState()));
       eventData[flutter::EncodableValue("updatePosition")] = flutter::EncodableValue((int) position); //int
       eventData[flutter::EncodableValue("updateTime")] = flutter::EncodableValue((int) updateTime); //int
-      eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int) (duration * session.BufferingProgress())); //int
+      // eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int) (duration * session.BufferingProgress())); //int
+      eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int) 0); //int
       eventData[flutter::EncodableValue("duration")] = flutter::EncodableValue((int) duration); //int
 
       event_sink_->Success(eventData);
