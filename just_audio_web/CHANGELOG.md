@@ -1,3 +1,15 @@
+## 0.4.7
+
+* Fix bug handling simultaneous play requests.
+
+## 0.4.6
+
+* Fix bug playing quickly after load.
+
+## 0.4.5
+
+* Fix interrupted play request bug.
+
 ## 0.4.4
 
 * Implement disposeAllPlayers.

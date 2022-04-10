@@ -100,6 +100,7 @@ abstract class JustAudioPlayer extends AudioPlayerPlatform {
 /// An HTML5-specific implementation of [JustAudioPlayer].
 class Html5AudioPlayer extends JustAudioPlayer {
   final _audioElement = AudioElement();
+  late final _playPauseQueue = _PlayPauseQueue(_audioElement);
   Completer? _durationCompleter;
   AudioSourcePlayer? _audioSourcePlayer;
   LoopModeMessage _loopMode = LoopModeMessage.off;
@@ -189,6 +190,7 @@ class Html5AudioPlayer extends JustAudioPlayer {
             }
           }
         } else {
+          await _currentAudioSourcePlayer?.pause();
           transition(ProcessingStateMessage.completed);
         }
       }
@@ -571,6 +573,8 @@ abstract class IndexedAudioSourcePlayer extends AudioSourcePlayer {
   /// The audio element that renders the audio.
   AudioElement get _audioElement => html5AudioPlayer._audioElement;
 
+  _PlayPauseQueue get _playPauseQueue => html5AudioPlayer._playPauseQueue;
+
   @override
   String toString() => "$runtimeType";
 }
@@ -613,7 +617,7 @@ abstract class UriAudioSourcePlayer extends IndexedAudioSourcePlayer {
   @override
   Future<void> play() async {
     _audioElement.currentTime = _resumePos!;
-    await _audioElement.play();
+    await _playPauseQueue.play();
     _completer = Completer<dynamic>();
     await _completer!.future;
     _completer = null;
@@ -622,7 +626,7 @@ abstract class UriAudioSourcePlayer extends IndexedAudioSourcePlayer {
   @override
   Future<void> pause() async {
     _resumePos = _audioElement.currentTime as double?;
-    _audioElement.pause();
+    _playPauseQueue.pause();
     _interruptPlay();
   }
 
@@ -790,12 +794,17 @@ class ClippingAudioSourcePlayer extends IndexedAudioSourcePlayer {
         effectiveStart.inMilliseconds + initialPosition;
     _resumePos = absoluteInitialPosition / 1000.0;
     final fullDuration = (await html5AudioPlayer.loadUri(audioSourcePlayer.uri,
-        Duration(milliseconds: absoluteInitialPosition)))!;
+        Duration(milliseconds: absoluteInitialPosition)));
     _initialPos = null;
-    _duration = Duration(
-        milliseconds: min((end ?? fullDuration).inMilliseconds,
-                fullDuration.inMilliseconds) -
-            effectiveStart.inMilliseconds);
+    if (fullDuration != null) {
+      _duration = Duration(
+          milliseconds: min((end ?? fullDuration).inMilliseconds,
+                  fullDuration.inMilliseconds) -
+              effectiveStart.inMilliseconds);
+    } else if (end != null) {
+      _duration = Duration(
+          milliseconds: end!.inMilliseconds - effectiveStart.inMilliseconds);
+    }
     return _duration;
   }
 
@@ -804,10 +813,10 @@ class ClippingAudioSourcePlayer extends IndexedAudioSourcePlayer {
 
   @override
   Future<void> play() async {
-    _interruptPlay(ClipInterruptReason.simultaneous);
-    _audioElement.currentTime = _resumePos!;
-    await _audioElement.play();
+    if (_completer != null) return;
     _completer = Completer<ClipInterruptReason>();
+    _audioElement.currentTime = _resumePos!;
+    await _playPauseQueue.play();
     ClipInterruptReason reason;
     while ((reason = await _completer!.future) == ClipInterruptReason.seek) {
       _completer = Completer<ClipInterruptReason>();
@@ -822,7 +831,7 @@ class ClippingAudioSourcePlayer extends IndexedAudioSourcePlayer {
   Future<void> pause() async {
     _interruptPlay(ClipInterruptReason.pause);
     _resumePos = _audioElement.currentTime as double?;
-    _audioElement.pause();
+    _playPauseQueue.pause();
   }
 
   @override
@@ -890,7 +899,7 @@ class ClippingAudioSourcePlayer extends IndexedAudioSourcePlayer {
 }
 
 /// Reasons why playback of a clipping audio source may be interrupted.
-enum ClipInterruptReason { end, pause, seek, simultaneous }
+enum ClipInterruptReason { end, pause, seek }
 
 /// A player for a [LoopingAudioSourceMessage].
 class LoopingAudioSourcePlayer extends AudioSourcePlayer {
@@ -920,5 +929,44 @@ class LoopingAudioSourcePlayer extends AudioSourcePlayer {
       offset += childShuffleOrder.length;
     }
     return order;
+  }
+}
+
+class _PlayPauseRequest {
+  final bool playing;
+  final completer = Completer<void>();
+
+  _PlayPauseRequest(this.playing);
+}
+
+class _PlayPauseQueue {
+  final AudioElement audioElement;
+  final _queue = StreamController<_PlayPauseRequest>();
+
+  _PlayPauseQueue(this.audioElement) {
+    _run();
+  }
+
+  Future<void> play() async {
+    final request = _PlayPauseRequest(true);
+    _queue.add(request);
+    await request.completer.future;
+  }
+
+  Future<void> pause() async {
+    final request = _PlayPauseRequest(false);
+    _queue.add(request);
+    await request.completer.future;
+  }
+
+  Future<void> _run() async {
+    await for (var request in _queue.stream) {
+      if (request.playing) {
+        await audioElement.play();
+      } else {
+        audioElement.pause();
+      }
+      request.completer.complete();
+    }
   }
 }
