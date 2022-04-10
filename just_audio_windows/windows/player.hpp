@@ -17,6 +17,9 @@
 #include <winrt/Windows.Media.Playback.h>
 #include <winrt/Windows.System.h>
 
+#define TO_MILLISECONDS(timespan) timespan.count() / 10000
+#define TO_MICROSECONDS(timespan) TO_MILLISECONDS(timespan) * 1000
+
 using flutter::EncodableMap;
 using flutter::EncodableValue;
 
@@ -218,8 +221,9 @@ public:
           const auto* position = std::get_if<int32_t>(ValueOrNull(*args, "position"));
           if (position) {
             mediaPlayer.Position(TimeSpan(std::chrono::milliseconds(*position)));
+            result->Success(flutter::EncodableMap());
           }
-          result->Success(flutter::EncodableMap());
+          result->Error("position", "the position argument can not be null");
         } else if (method_call.method_name().compare("concatenatingInsertAll") == 0) {
           result->Success(flutter::EncodableMap());
         } else if (method_call.method_name().compare("concatenatingRemoveRange") == 0) {
@@ -278,18 +282,16 @@ public:
       auto session = mediaPlayer.PlaybackSession();
       auto eventData = flutter::EncodableMap();
 
-      auto duration = std::chrono::duration_cast<std::chrono::microseconds>(session.NaturalDuration()).count();
-      auto position = std::chrono::duration_cast<std::chrono::microseconds>(session.Position()).count();
+      auto duration = TO_MICROSECONDS(session.NaturalDuration());
 
       auto now = std::chrono::system_clock::now();
-      auto updateTime = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
       eventData[flutter::EncodableValue("processingState")] = flutter::EncodableValue(processingState(session.PlaybackState()));
-      eventData[flutter::EncodableValue("updatePosition")] = flutter::EncodableValue((int) position); //int
-      eventData[flutter::EncodableValue("updateTime")] = flutter::EncodableValue((int) updateTime); //int
-      // eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int) (duration * session.BufferingProgress())); //int
+      eventData[flutter::EncodableValue("updatePosition")] = flutter::EncodableValue(TO_MICROSECONDS(session.Position())); //int
+      eventData[flutter::EncodableValue("updateTime")] = flutter::EncodableValue(TO_MILLISECONDS(now.time_since_epoch())); //int
+      // eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue(negativeToPositive((int) (duration * session.BufferingProgress()))); //int
       eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int) 0); //int
-      eventData[flutter::EncodableValue("duration")] = flutter::EncodableValue((int) duration); //int
+      eventData[flutter::EncodableValue("duration")] = flutter::EncodableValue(duration); //int
 
       event_sink_->Success(eventData);
     }
@@ -315,6 +317,12 @@ public:
       // mediaPlayer.PlaybackMediaMarkers();
 
       return icyData;
+    }
+
+    /// Transforms a num into positive, if negative
+    int negativeToPositive(int num) {
+      if (num < 0) { return num * (-1); }
+      return num;
     }
 
 }; 
