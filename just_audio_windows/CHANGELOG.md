@@ -1,3 +1,9 @@
+## 0.1.0
+
+* [fix]: `seek` no longer throws error
+* [new] Added support for data event stream
+* [new] Support for looping over a single track
+
 ## 0.0.1
 
 * Initial Base Implementation
