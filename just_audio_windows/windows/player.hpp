@@ -222,8 +222,11 @@ public:
         } else if (method_call.method_name().compare("setPreferredPeakBitRate") == 0) {
           result->Success(flutter::EncodableMap());
         } else if (method_call.method_name().compare("seek") == 0) {
-          const auto* position = std::get_if<int>(ValueOrNull(*args, "position"));
-
+          auto* position = std::get_if<int>(ValueOrNull(*args, "position"));
+          
+          if (position == nullptr) {
+            position = std::get_if<int_64>(ValueOrNull(*args, "position"));
+          }
           // std::cout << std::to_string(position) << std::endl;
 
           if (position == nullptr) {
