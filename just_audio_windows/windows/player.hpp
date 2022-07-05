@@ -225,7 +225,7 @@ public:
           auto* position = std::get_if<int>(ValueOrNull(*args, "position"));
           
           if (position == nullptr) {
-            position = std::get_if<int_64>(ValueOrNull(*args, "position"));
+            position = std::get_if<int64_t>(ValueOrNull(*args, "position"));
           }
           // std::cout << std::to_string(position) << std::endl;
 
