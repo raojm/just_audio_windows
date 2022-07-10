@@ -222,12 +222,17 @@ public:
         } else if (method_call.method_name().compare("setPreferredPeakBitRate") == 0) {
           result->Success(flutter::EncodableMap());
         } else if (method_call.method_name().compare("seek") == 0) {
-          const auto* position = std::get_if<int64_t>(ValueOrNull(*args, "position"));
-
-          // std::cout << std::to_string(position) << std::endl;
-
+          const auto* position = std::get_if<int>(ValueOrNull(*args, "position"));
+          
           if (position == nullptr) {
-            result->Error("position", "the position argument can not be null");
+            const auto* position2 = std::get_if<int64_t>(ValueOrNull(*args, "position"));
+            if (position2 == nullptr) {
+              result->Error("position", "the position argument can not be null");
+            } else if (mediaPlayer.CanSeek()) {
+              mediaPlayer.Position(TimeSpan(std::chrono::microseconds(*position2)));
+              // mediaPlayer.TimelineControllerPositionOffset(TimeSpan(std::chrono::microseconds(*position2)));
+              result->Success(flutter::EncodableMap());
+            }
           } else if (mediaPlayer.CanSeek()) {
             mediaPlayer.Position(TimeSpan(std::chrono::microseconds(*position)));
             // mediaPlayer.TimelineControllerPositionOffset(TimeSpan(std::chrono::microseconds(*position)));
