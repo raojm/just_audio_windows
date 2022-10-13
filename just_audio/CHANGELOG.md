@@ -1,3 +1,28 @@
+## 0.9.30
+
+* Upgrade ExoPlayer to 2.18.1.
+
+## 0.9.29
+
+* Fix bug in ConcatenatingAudioSource.clear().
+* Fix bug where proxy drains origin faster than it feeds client.
+* Fix bug where User Agent was not set on redirects (@mikel-snipd)
+* Fix bug where StreamAudioSource requests are not closed when proxy is disposed (@mikel-snipd)
+
+## 0.9.28
+
+* Recursively apply headers to HLS fragments.
+* Add positionDiscontinuityStream.
+
+## 0.9.27
+
+* Support offload scheduling on Android.
+* Fix iOS/macOS documentation for non-HTTP URLS and proxy usage.
+
+## 0.9.26
+
+* Auto-correct invalid HTTP headers in proxy.
+
 ## 0.9.25
 
 * Fix compile issue with Android SDK 33.
