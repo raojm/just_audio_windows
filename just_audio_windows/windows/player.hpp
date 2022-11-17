@@ -77,13 +77,13 @@ auto TO_WIDESTRING = [](std::string string) -> std::wstring {
 };
 
 
-class BetterEventSink {
+class JustAudioEventSink {
 public:
   // Prevent copying.
-  BetterEventSink(BetterEventSink const&) = delete;
-  BetterEventSink& operator=(BetterEventSink const&) = delete;
+  JustAudioEventSink(JustAudioEventSink const&) = delete;
+  JustAudioEventSink& operator=(JustAudioEventSink const&) = delete;
 
-  BetterEventSink::BetterEventSink(flutter::BinaryMessenger* messenger, const std::string& id) {
+  JustAudioEventSink::JustAudioEventSink(flutter::BinaryMessenger* messenger, const std::string& id) {
     auto event_channel =
       std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(messenger, id, &flutter::StandardMethodCodec::GetInstance());
 
@@ -124,8 +124,8 @@ public:
   Playback::MediaPlaybackList mediaPlaybackList{};
 
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> player_channel_;
-  std::unique_ptr<BetterEventSink> event_sink_ = nullptr;
-  std::unique_ptr<BetterEventSink> data_sink_ = nullptr;
+  std::unique_ptr<JustAudioEventSink> event_sink_ = nullptr;
+  std::unique_ptr<JustAudioEventSink> data_sink_ = nullptr;
 
   AudioPlayer::AudioPlayer(std::string idx, flutter::BinaryMessenger* messenger) {
     id = idx;
@@ -142,8 +142,8 @@ public:
       player->HandleMethodCall(call, std::move(result));
     });
 
-    event_sink_ = std::make_unique<BetterEventSink>(messenger, "com.ryanheise.just_audio.events." + idx);
-    data_sink_ = std::make_unique<BetterEventSink>(messenger, "com.ryanheise.just_audio.data." + idx);
+    event_sink_ = std::make_unique<JustAudioEventSink>(messenger, "com.ryanheise.just_audio.events." + idx);
+    data_sink_ = std::make_unique<JustAudioEventSink>(messenger, "com.ryanheise.just_audio.data." + idx);
 
     /// Set up event callbacks
     // Playback event
@@ -583,10 +583,14 @@ public:
     } catch (winrt::hresult_error const& ex) {
       std::cerr << "[just_audio_windows] Failed to seek to item: " << winrt::to_string(ex.message()) << std::endl;
     }
+
+    broadcastState();
   }
 
   void AudioPlayer::seekToPosition(int microseconds) {
     mediaPlayer.Position(TimeSpan(std::chrono::microseconds(microseconds)));
+
+    broadcastState();
   }
 
 };
