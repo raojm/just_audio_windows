@@ -345,7 +345,7 @@ public:
       int endIndex = *end;
 
       auto items = mediaPlaybackList.Items();
-      auto size = (int)items.Size();
+      auto size = (int) items.Size();
 
       if (endIndex > startIndex && startIndex >= 0 && endIndex <= size) {
         int count = endIndex - startIndex;
@@ -359,27 +359,24 @@ public:
         return result->Error("concatenatingRemoveRange_error", "invalid range");
       }
     } else if (method_call.method_name().compare("concatenatingMove") == 0) {
-      /*
       const auto* from = std::get_if<int>(ValueOrNull(*args, "currentIndex"));
       const auto* to = std::get_if<int>(ValueOrNull(*args, "newIndex"));
 
-      auto item = mediaPlaybackList.Items();
-      auto size = item.Size();
+      auto items = mediaPlaybackList.Items();
+      auto size = (int) items.Size();
 
       int currentIndex = *from;
       int newIndex = *to;
+
+      auto item = items.GetAt(currentIndex);
 
       if (currentIndex >= size || newIndex > size) {
         return result->Error("concatenatingMove_error", "index out of bounds");
       }
 
-      if (currentIndex > newIndex) {
-
-      } else if (currentIndex < newIndex) {
-
-      }
+      items.RemoveAt(currentIndex);
+      items.InsertAt(newIndex, item);
       // Do nothing if the two equals
-      */
       result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("setAndroidAudioAttributes") == 0) {
       result->Success(flutter::EncodableMap());
