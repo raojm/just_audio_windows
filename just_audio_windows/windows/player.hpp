@@ -318,6 +318,10 @@ public:
 
       result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("setShuffleOrder") == 0) {
+      const auto* source = std::get_if<flutter::EncodableMap>(ValueOrNull(*args, "audioSource"));
+
+      setShuffleOrder(*source);
+
       result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("setAutomaticallyWaitsToMinimizeStalling") == 0) {
       result->Success(flutter::EncodableMap());
@@ -604,6 +608,60 @@ public:
     mediaPlayer.Position(TimeSpan(std::chrono::microseconds(microseconds)));
 
     broadcastState();
+  }
+
+  void AudioPlayer::setShuffleOrder(const flutter::EncodableMap& source) {
+    const std::string* type = std::get_if<std::string>(ValueOrNull(source, "type"));
+    // const std::string* id = std::get_if<std::string>(ValueOrNull(source, "id"));
+
+    if (type->compare("concatenating") == 0) {
+      const auto* suffleOrder = std::get_if<flutter::EncodableList>(ValueOrNull(source, "suffleOrder"));
+
+      // A copy of mediaPlaybackList.Items()
+      std::vector<Playback::MediaPlaybackItem> itemsCopy {};
+      for (auto item : mediaPlaybackList.Items()) {
+        itemsCopy.push_back(item);
+      }
+
+      std::cerr << "[just_audio_windows]" << suffleOrder->data() << std::endl;
+
+      // // then we apply the suffling to itemsCopy
+      // for (int i = 0; i < suffleOrder->size(); i++) {
+      //   std::cerr << i << "\n";
+
+      //   auto item = itemsCopy.at(i);
+      //   auto insertAt = suffleOrder->at(i).LongValue();
+
+      //   // delete the item at i
+      //   itemsCopy.erase(itemsCopy.begin() + i);
+      //   itemsCopy.insert(itemsCopy.begin() + insertAt, item);
+      // }
+
+      std::cerr << "[just_audio_windows] Suffle applied" << std::endl;
+
+      // and finnaly provide it to the player list
+      mediaPlaybackList.SetShuffledItems(itemsCopy);
+
+      std::cerr << "[just_audio_windows] SetSuffledItems" << std::endl;
+
+      itemsCopy.clear();
+      itemsCopy.shrink_to_fit();
+
+      std::cerr << "[just_audio_windows] Clear" << std::endl;
+
+      const auto* children = std::get_if<flutter::EncodableList>(ValueOrNull(source, "children"));
+      for (auto child : *children) {
+        setShuffleOrder(std::get<flutter::EncodableMap>(child));
+      }
+
+      std::cerr << "[just_audio_windows] Apply to children" << std::endl;
+
+    } else if (type->compare("looping") == 0) {
+      const flutter::EncodableMap* child = std::get_if<flutter::EncodableMap>(ValueOrNull(source, "child"));
+      setShuffleOrder(*child);
+    } else {
+      // can not shuffle a single-audio media source
+    }
   }
 
 };
