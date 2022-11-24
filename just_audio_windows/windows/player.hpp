@@ -300,6 +300,22 @@ public:
 
       result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("setShuffleMode") == 0) {
+      const auto* shuffleModePtr = std::get_if<int32_t>(ValueOrNull(*args, "shuffleMode"));
+      if (shuffleModePtr == nullptr) {
+        return result->Error("shuffleMode_error", "shuffleMode argument missing");
+      }
+
+      switch (*shuffleModePtr) {
+      case 0: // none
+        mediaPlaybackList.ShuffleEnabled(false);
+        break;
+      case 1: // all
+        mediaPlaybackList.ShuffleEnabled(true);
+        break;
+      default:
+        return result->Error("shuffleMode_error", "shuffleMode is invalid");
+      }
+
       result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("setShuffleOrder") == 0) {
       result->Success(flutter::EncodableMap());
