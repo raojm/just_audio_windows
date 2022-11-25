@@ -1,6 +1,6 @@
 # just_audio_windows
 
-The windows implementation of [`just_audio`](https://pub.dev/packages/just_audio)
+The windows implementation of [`just_audio`](https://pub.dev/packages/just_audio). Implemented using [Windows' Media Player](https://learn.microsoft.com/en-us/windows/uwp/audio-video-camera/play-audio-and-video-with-mediaplayer)
 
 ## Features
 
@@ -18,8 +18,8 @@ The windows implementation of [`just_audio`](https://pub.dev/packages/just_audio
 | play/pause/seek                |      ✅      | |
 | set volume/speed               |      ✅      | |
 | clip audio                     |              | |
-| playlists                      |      ✅      | |
-| looping/shuffling              | looping only  | |
+| playlists                      |      ✅      | [Playlists](https://learn.microsoft.com/en-us/windows/uwp/audio-video-camera/media-playback-with-mediasource#play-a-list-of-media-items-with-mediaplaybacklist) |
+| looping/shuffling              |      ✅      | |
 | compose audio                  |              | |
 | gapless playback               |      ✅      | |
 | report player errors           |      ✅      | | 

@@ -1,6 +1,7 @@
-## next
+## [0.2.0]
 
-* [new]: Support playlists ([#8](https://github.com/bdlukaa/just_audio_windows/pull/8))
+* [new]: Support playlists ([#8](https://github.com/bdlukaa/just_audio_windows/pull/8), [#9](https://github.com/bdlukaa/just_audio_windows/pull/9))
+* [fix]: Fixed build in VS17.3 ([#10](https://github.com/bdlukaa/just_audio_windows/pull/10))
 
 ## 0.1.0
 

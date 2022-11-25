@@ -300,8 +300,28 @@ public:
 
       result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("setShuffleMode") == 0) {
+      const auto* shuffleModePtr = std::get_if<int32_t>(ValueOrNull(*args, "shuffleMode"));
+      if (shuffleModePtr == nullptr) {
+        return result->Error("shuffleMode_error", "shuffleMode argument missing");
+      }
+
+      switch (*shuffleModePtr) {
+      case 0: // none
+        mediaPlaybackList.ShuffleEnabled(false);
+        break;
+      case 1: // all
+        mediaPlaybackList.ShuffleEnabled(true);
+        break;
+      default:
+        return result->Error("shuffleMode_error", "shuffleMode is invalid");
+      }
+
       result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("setShuffleOrder") == 0) {
+      const auto* source = std::get_if<flutter::EncodableMap>(ValueOrNull(*args, "audioSource"));
+
+      setShuffleOrder(*source);
+
       result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("setAutomaticallyWaitsToMinimizeStalling") == 0) {
       result->Success(flutter::EncodableMap());
@@ -345,7 +365,7 @@ public:
       int endIndex = *end;
 
       auto items = mediaPlaybackList.Items();
-      auto size = (int)items.Size();
+      auto size = (int) items.Size();
 
       if (endIndex > startIndex && startIndex >= 0 && endIndex <= size) {
         int count = endIndex - startIndex;
@@ -359,27 +379,24 @@ public:
         return result->Error("concatenatingRemoveRange_error", "invalid range");
       }
     } else if (method_call.method_name().compare("concatenatingMove") == 0) {
-      /*
       const auto* from = std::get_if<int>(ValueOrNull(*args, "currentIndex"));
       const auto* to = std::get_if<int>(ValueOrNull(*args, "newIndex"));
 
-      auto item = mediaPlaybackList.Items();
-      auto size = item.Size();
+      auto items = mediaPlaybackList.Items();
+      auto size = (int) items.Size();
 
       int currentIndex = *from;
       int newIndex = *to;
+
+      auto item = items.GetAt(currentIndex);
 
       if (currentIndex >= size || newIndex > size) {
         return result->Error("concatenatingMove_error", "index out of bounds");
       }
 
-      if (currentIndex > newIndex) {
-
-      } else if (currentIndex < newIndex) {
-
-      }
+      items.RemoveAt(currentIndex);
+      items.InsertAt(newIndex, item);
       // Do nothing if the two equals
-      */
       result->Success(flutter::EncodableMap());
     } else if (method_call.method_name().compare("setAndroidAudioAttributes") == 0) {
       result->Success(flutter::EncodableMap());
@@ -591,6 +608,48 @@ public:
     mediaPlayer.Position(TimeSpan(std::chrono::microseconds(microseconds)));
 
     broadcastState();
+  }
+
+  void AudioPlayer::setShuffleOrder(const flutter::EncodableMap& source) {
+    const std::string* type = std::get_if<std::string>(ValueOrNull(source, "type"));
+    // const std::string* id = std::get_if<std::string>(ValueOrNull(source, "id"));
+
+    if (type->compare("concatenating") == 0) {
+      const auto* shuffleOrder = std::get_if<flutter::EncodableList>(ValueOrNull(source, "shuffleOrder"));
+
+      // A copy of mediaPlaybackList.Items()
+      std::vector<Playback::MediaPlaybackItem> itemsCopy {};
+      for (auto item : mediaPlaybackList.Items()) {
+        itemsCopy.push_back(item);
+      }
+
+      // then we apply the suffling to itemsCopy
+      for (int i = 0; i < ((int) shuffleOrder->size()); i++) {
+        auto item = itemsCopy.at(i);
+
+        auto insertAt = (*shuffleOrder).at(i).LongValue();
+
+        // delete the item at i
+        itemsCopy.erase(itemsCopy.begin() + i);
+        itemsCopy.insert(itemsCopy.begin() + insertAt, item);
+      }
+
+      // and finnaly provide it to the player list
+      mediaPlaybackList.SetShuffledItems(itemsCopy);
+
+      itemsCopy.clear();
+      itemsCopy.shrink_to_fit();
+
+      const auto* children = std::get_if<flutter::EncodableList>(ValueOrNull(source, "children"));
+      for (auto child : *children) {
+        setShuffleOrder(std::get<flutter::EncodableMap>(child));
+      }
+    } else if (type->compare("looping") == 0) {
+      const flutter::EncodableMap* child = std::get_if<flutter::EncodableMap>(ValueOrNull(source, "child"));
+      setShuffleOrder(*child);
+    } else {
+      // can not shuffle a single-audio media source
+    }
   }
 
 };
