@@ -519,9 +519,13 @@ public:
     eventData[flutter::EncodableValue("bufferedPosition")] = flutter::EncodableValue((int64_t)(duration * session.BufferingProgress())); //int
     eventData[flutter::EncodableValue("duration")] = flutter::EncodableValue(duration); //int
 
-    int64_t currentIndex = mediaPlaybackList.CurrentItemIndex();
-    if (currentIndex != 4294967295) { // UINT32_MAX - 1
-      eventData[flutter::EncodableValue("currentIndex")] = flutter::EncodableValue(currentIndex); //int
+    if (mediaPlaybackList.Items().Size() > 0) {
+      int64_t currentIndex = mediaPlaybackList.CurrentItemIndex();
+      if (currentIndex != 4294967295) { // UINT32_MAX - 1
+        eventData[flutter::EncodableValue("currentIndex")] = flutter::EncodableValue(currentIndex); //int
+      }
+    } else {
+      eventData[flutter::EncodableValue("currentIndex")] = flutter::EncodableValue(0); //int
     }
 
     event_sink_->Success(eventData);
