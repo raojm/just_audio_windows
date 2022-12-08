@@ -1,3 +1,7 @@
+## [next]
+
+* [fix]: `currentIndex` is now always getting reported correctly in events ([#15](https://github.com/bdlukaa/just_audio_windows/issues/15), [#16](https://github.com/bdlukaa/just_audio_windows/issues/16))
+
 ## [0.2.0]
 
 * [new]: Support playlists ([#8](https://github.com/bdlukaa/just_audio_windows/pull/8), [#9](https://github.com/bdlukaa/just_audio_windows/pull/9))
