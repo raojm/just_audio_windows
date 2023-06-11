@@ -52,13 +52,18 @@ void runTests() {
   }
 
   setUp(() {
-    audioSessionChannel.setMockMethodCallHandler((MethodCall methodCall) async {
+    _ambiguate(TestDefaultBinaryMessengerBinding.instance)!
+        .defaultBinaryMessenger
+        .setMockMethodCallHandler(audioSessionChannel,
+            (MethodCall methodCall) async {
       return null;
     });
   });
 
   tearDown(() {
-    audioSessionChannel.setMockMethodCallHandler(null);
+    _ambiguate(TestDefaultBinaryMessengerBinding.instance)!
+        .defaultBinaryMessenger
+        .setMockMethodCallHandler(audioSessionChannel, null);
   });
 
   test('init', () async {
@@ -84,9 +89,11 @@ void runTests() {
 
   test('assets', () async {
     final player = AudioPlayer();
-    void expectAsset(String uri) {
+    void expectAsset(String uri, {dynamic tag}) {
       final audioSource = player.audioSource;
       expect(audioSource is UriAudioSource && audioSource.uri.toString() == uri,
+          equals(true));
+      expect(audioSource is UriAudioSource && audioSource.tag == tag,
           equals(true));
     }
 
@@ -98,9 +105,9 @@ void runTests() {
         preload: false);
     expectAsset('asset:///audio/foo.mp3');
     await player.setAudioSource(
-        AudioSource.asset('audio/foo.mp3', package: 'bar'),
+        AudioSource.asset('audio/foo.mp3', package: 'bar', tag: 'asset-tag'),
         preload: false);
-    expectAsset('asset:///packages/bar/audio/foo.mp3');
+    expectAsset('asset:///packages/bar/audio/foo.mp3', tag: 'asset-tag');
   });
 
   test('idle-state', () async {
@@ -344,7 +351,7 @@ void runTests() {
     stopwatch.start();
 
     var completer = Completer<dynamic>();
-    late StreamSubscription subscription;
+    late StreamSubscription<Duration> subscription;
     subscription = player.positionStream.listen((position) {
       if (position >= position1) {
         subscription.cancel();
@@ -1089,7 +1096,7 @@ void runTests() {
       playing: false,
     );
     var completer = Completer<dynamic>();
-    late StreamSubscription subscription;
+    late StreamSubscription<Duration> subscription;
     subscription = player.positionStream.listen((position) {
       expectDuration(position, Duration.zero);
       subscription.cancel();
@@ -1168,7 +1175,7 @@ void runTests() {
     );
     expect(player.currentIndex, 0);
     var completer = Completer<dynamic>();
-    late StreamSubscription subscription;
+    late StreamSubscription<Duration> subscription;
     subscription = player.positionStream.listen((position) {
       expectDuration(position, Duration.zero);
       subscription.cancel();
@@ -1741,7 +1748,7 @@ class MockWebServer {
   late HttpServer _server;
   int get port => _server.port;
 
-  Future start() async {
+  Future<void> start() async {
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _server.listen((request) async {
       final response = request.response;
@@ -1764,7 +1771,9 @@ class MockWebServer {
     });
   }
 
-  Future stop() => _server.close();
+  Future<void> stop() => _server.close();
 }
 
 class MyHttpOverrides extends HttpOverrides {}
+
+T? _ambiguate<T>(T? value) => value;
