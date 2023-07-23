@@ -214,6 +214,7 @@ public:
     });
   }
   AudioPlayer::~AudioPlayer() {
+    player_channel_->SetMethodCallHandler(nullptr);
     mediaPlayer.Close();
   }
 
